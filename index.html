@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Is This Copyright?</title>
+<script src="https://unpkg.com/jsmediatags@3.9.5/dist/jsmediatags.web.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #1a1a1a; min-height: 100vh; }
+  .container { max-width: 640px; margin: 0 auto; padding: 40px 20px; }
+
+  h1 { font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+  .sub { color: #666; font-size: 14px; margin-bottom: 32px; }
+
+  .card { background: #fff; border-radius: 12px; border: 1px solid #e5e5e5; padding: 20px; margin-bottom: 16px; }
+
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #333; }
+  input[type="password"], input[type="search"] {
+    width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px;
+    font-size: 14px; outline: none; transition: border-color 0.15s;
+  }
+  input:focus { border-color: #555; }
+  .hint { font-size: 12px; color: #888; margin-top: 6px; }
+  .hint a { color: #333; }
+
+  .search-wrap { position: relative; }
+  .search-wrap input { padding-left: 36px; }
+  .search-wrap::before { content: "🔍"; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 14px; }
+
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
+  .pill { padding: 5px 12px; border-radius: 20px; border: 1px solid #ddd; background: #fff; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+  .pill:hover { border-color: #999; }
+  .pill.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+
+  .song-list { display: flex; flex-direction: column; gap: 2px; max-height: 360px; overflow-y: auto; }
+  .song { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 8px; background: #fafafa; border: 1px solid #eee; }
+  .song-text { min-width: 0; }
+  .song-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .song-meta { font-size: 12px; color: #888; }
+
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .badge-c { background: #fee2e2; color: #b91c1c; }
+  .badge-free { background: #dcfce7; color: #15803d; }
+  .badge-cc { background: #fef9c3; color: #a16207; }
+
+  .upload-zone {
+    border: 2px dashed #ccc; border-radius: 10px; padding: 36px 20px;
+    text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: #888; background: #f9f9f9; }
+  .upload-zone p { font-size: 14px; color: #555; margin-top: 8px; }
+  .upload-zone span { font-size: 32px; }
+  #file-input { display: none; }
+
+  .result { border-radius: 10px; padding: 16px; margin-top: 14px; }
+  .result-c { background: #fee2e2; border: 1px solid #fca5a5; }
+  .result-free { background: #dcfce7; border: 1px solid #86efac; }
+  .result-cc { background: #fef9c3; border: 1px solid #fde047; }
+  .result-warn { background: #f0f0f0; border: 1px solid #ddd; }
+  .result-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .result-body { font-size: 13px; line-height: 1.6; color: #333; }
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .result-item { background: rgba(255,255,255,0.6); border-radius: 6px; padding: 8px 10px; }
+  .result-item-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #666; margin-bottom: 2px; }
+  .result-item-val { font-size: 13px; font-weight: 500; }
+
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #ddd; border-top-color: #555; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty { text-align: center; padding: 24px; color: #aaa; font-size: 13px; }
+  .count { font-size: 12px; color: #999; }
+  .section-title { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Is This Copyright? ©</h1>
+  <p class="sub">Check if a song is copyrighted, public domain, or Creative Commons.</p>
+
+  <div class="card">
+    <label>Anthropic API Key (for MP3 analysis)</label>
+    <input type="password" id="api-key" placeholder="sk-ant-api03-…"/>
+    <p class="hint">Free at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> — only needed for MP3 upload analysis</p>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <span class="section-title" style="margin:0">Music Database</span>
+      <span class="count" id="count">50 tracks</span>
+    </div>
+    <div class="search-wrap">
+      <input type="search" id="search" placeholder="Search songs, artists…"/>
+    </div>
+    <div class="filters" id="filters">
+      <button class="pill active" data-f="all">All</button>
+      <button class="pill" data-f="copyrighted">Copyrighted</button>
+      <button class="pill" data-f="public">Public Domain</button>
+      <button class="pill" data-f="cc">Creative Commons</button>
+    </div>
+    <div class="song-list" id="song-list"></div>
+  </div>
+
+  <div class="card">
+    <p class="section-title">Don't see your song? Upload the MP3</p>
+    <div class="upload-zone" id="zone" onclick="document.getElementById('file-input').click()">
+      <input type="file" id="file-input" accept=".mp3,audio/mpeg"/>
+      <span>🎵</span>
+      <p>Click or drag &amp; drop an MP3 file</p>
+    </div>
+    <div id="result-area"></div>
+  </div>
+  <p style="text-align:center;font-size:12px;color:#aaa;margin-top:8px;padding-bottom:8px">
+    Created by the independent developer a.k.a <a href="https://phthion.github.io/about-phthion/" target="_blank" style="color:#555;font-weight:600;text-decoration:none;">PHTHION</a>
+  </p>
+</div>
+
+<script>
+const SONGS = [
+  {title:"Bohemian Rhapsody",artist:"Queen",year:1975,status:"copyrighted"},
+  {title:"Blinding Lights",artist:"The Weeknd",year:2019,status:"copyrighted"},
+  {title:"Shape of You",artist:"Ed Sheeran",year:2017,status:"copyrighted"},
+  {title:"Hotel California",artist:"Eagles",year:1977,status:"copyrighted"},
+  {title:"Smells Like Teen Spirit",artist:"Nirvana",year:1991,status:"copyrighted"},
+  {title:"Rolling in the Deep",artist:"Adele",year:2010,status:"copyrighted"},
+  {title:"Stairway to Heaven",artist:"Led Zeppelin",year:1971,status:"copyrighted"},
+  {title:"Thriller",artist:"Michael Jackson",year:1982,status:"copyrighted"},
+  {title:"Like a Rolling Stone",artist:"Bob Dylan",year:1965,status:"copyrighted"},
+  {title:"Purple Haze",artist:"Jimi Hendrix",year:1967,status:"copyrighted"},
+  {title:"Respect",artist:"Aretha Franklin",year:1967,status:"copyrighted"},
+  {title:"Imagine",artist:"John Lennon",year:1971,status:"copyrighted"},
+  {title:"Yesterday",artist:"The Beatles",year:1965,status:"copyrighted"},
+  {title:"Dreams",artist:"Fleetwood Mac",year:1977,status:"copyrighted"},
+  {title:"Mr. Brightside",artist:"The Killers",year:2003,status:"copyrighted"},
+  {title:"Lose Yourself",artist:"Eminem",year:2002,status:"copyrighted"},
+  {title:"Seven Nation Army",artist:"The White Stripes",year:2003,status:"copyrighted"},
+  {title:"Creep",artist:"Radiohead",year:1992,status:"copyrighted"},
+  {title:"Don't Stop Believin'",artist:"Journey",year:1981,status:"copyrighted"},
+  {title:"Eye of the Tiger",artist:"Survivor",year:1982,status:"copyrighted"},
+  {title:"Happy",artist:"Pharrell Williams",year:2013,status:"copyrighted"},
+  {title:"Uptown Funk",artist:"Mark Ronson ft. Bruno Mars",year:2014,status:"copyrighted"},
+  {title:"Wake Me Up",artist:"Avicii",year:2013,status:"copyrighted"},
+  {title:"Somebody That I Used to Know",artist:"Gotye ft. Kimbra",year:2011,status:"copyrighted"},
+  {title:"Numb",artist:"Linkin Park",year:2003,status:"copyrighted"},
+  {title:"Moonlight Sonata",artist:"Beethoven",year:1801,status:"public"},
+  {title:"Symphony No. 9",artist:"Beethoven",year:1824,status:"public"},
+  {title:"The Four Seasons",artist:"Vivaldi",year:1725,status:"public"},
+  {title:"Clair de Lune",artist:"Debussy",year:1905,status:"public"},
+  {title:"Fur Elise",artist:"Beethoven",year:1810,status:"public"},
+  {title:"Nocturne Op. 9 No. 2",artist:"Chopin",year:1832,status:"public"},
+  {title:"Swan Lake Suite",artist:"Tchaikovsky",year:1876,status:"public"},
+  {title:"The Nutcracker Suite",artist:"Tchaikovsky",year:1892,status:"public"},
+  {title:"Ride of the Valkyries",artist:"Wagner",year:1870,status:"public"},
+  {title:"Also Sprach Zarathustra",artist:"Richard Strauss",year:1896,status:"public"},
+  {title:"Gymnopedie No. 1",artist:"Erik Satie",year:1888,status:"public"},
+  {title:"Toccata and Fugue in D minor",artist:"Bach",year:1704,status:"public"},
+  {title:"Rhapsody in Blue",artist:"Gershwin",year:1924,status:"public"},
+  {title:"Bolero",artist:"Ravel",year:1928,status:"public"},
+  {title:"Canon in D",artist:"Pachelbel",year:1680,status:"public"},
+  {title:"Gymnopedie No. 1 (CC cover)",artist:"Kevin MacLeod",year:2015,status:"cc"},
+  {title:"Victory",artist:"Komiku",year:2017,status:"cc"},
+  {title:"Night Owl",artist:"Broke For Free",year:2011,status:"cc"},
+  {title:"Sunshine",artist:"Josh Woodward",year:2012,status:"cc"},
+  {title:"Section",artist:"Kai Engel",year:2015,status:"cc"},
+  {title:"Careful",artist:"Podington Bear",year:2013,status:"cc"},
+  {title:"The Dread Step",artist:"rolemusic",year:2014,status:"cc"},
+  {title:"Icelandic Arpeggios",artist:"Blue Dot Sessions",year:2016,status:"cc"},
+  {title:"Electrician",artist:"Chris Zabriskie",year:2014,status:"cc"},
+  {title:"Cylinder Five",artist:"Chris Zabriskie",year:2014,status:"cc"},
+];
+
+let filter='all', query='';
+
+function badge(s){
+  if(s==='copyrighted') return '<span class="badge badge-c">Copyrighted</span>';
+  if(s==='public') return '<span class="badge badge-free">Public Domain</span>';
+  return '<span class="badge badge-cc">Creative Commons</span>';
+}
+
+function render(){
+  const q=query.toLowerCase();
+  const list=SONGS.filter(s=>{
+    const m=!q||s.title.toLowerCase().includes(q)||s.artist.toLowerCase().includes(q);
+    const f=filter==='all'||(filter==='copyrighted'&&s.status==='copyrighted')||(filter==='public'&&s.status==='public')||(filter==='cc'&&s.status==='cc');
+    return m&&f;
+  });
+  document.getElementById('count').textContent=list.length+' tracks';
+  const el=document.getElementById('song-list');
+  if(!list.length){el.innerHTML='<div class="empty">No results found</div>';return;}
+  el.innerHTML=list.map(s=>`<div class="song"><div class="song-text"><div class="song-name">${s.title}</div><div class="song-meta">${s.artist} · ${s.year}</div></div>${badge(s.status)}</div>`).join('');
+}
+
+document.getElementById('search').addEventListener('input',e=>{query=e.target.value;render();});
+document.querySelectorAll('.pill').forEach(p=>p.addEventListener('click',()=>{
+  document.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));
+  p.classList.add('active'); filter=p.dataset.f; render();
+}));
+render();
+
+const zone=document.getElementById('zone');
+zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drag');});
+zone.addEventListener('dragleave',()=>zone.classList.remove('drag'));
+zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('drag');handle(e.dataTransfer.files[0]);});
+document.getElementById('file-input').addEventListener('change',e=>handle(e.target.files[0]));
+
+function handle(file){
+  if(!file) return;
+  const area=document.getElementById('result-area');
+  area.innerHTML='<div style="padding:14px;color:#666;font-size:13px"><span class="spinner"></span>Reading file…</div>';
+  jsmediatags.read(file,{
+    onSuccess(tag){const t=tag.tags;analyze(t.title||file.name.replace('.mp3',''),t.artist||'Unknown Artist',t.year||'Unknown');},
+    onError(){analyze(file.name.replace('.mp3',''),'Unknown Artist','Unknown');}
+  });
+}
+
+async function analyze(title,artist,year){
+  const area=document.getElementById('result-area');
+  area.innerHTML='<div style="padding:14px;color:#666;font-size:13px"><span class="spinner"></span>Checking copyright…</div>';
+  const key=document.getElementById('api-key').value.trim();
+  if(!key){
+    area.innerHTML=`<div class="result result-warn"><div class="result-title">API Key Required</div><div class="result-body">Enter your Anthropic API key above to analyze "<strong>${title}</strong>" by ${artist}.</div></div>`;
+    return;
+  }
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,messages:[{role:'user',content:`You are a music copyright expert. Analyze this song and return ONLY valid JSON with no extra text:\n\nTitle: "${title}"\nArtist: "${artist}"\nYear: "${year}"\n\nJSON:\n{"status":"copyrighted|public_domain|creative_commons|unclear","verdict":"One clear sentence","owner":"Copyright holder or Public Domain","safe":"Yes|No|With license|Verify first","detail":"2 sentences of explanation"}`}]})
+    });
+    const data=await resp.json();
+    if(data.error) throw new Error(data.error.message);
+    const r=JSON.parse(data.content[0].text.replace(/```json|```/g,'').trim());
+    const cls=r.status==='copyrighted'?'result-c':r.status==='public_domain'?'result-free':'result-cc';
+    area.innerHTML=`<div class="result ${cls}"><div class="result-title">${r.verdict}</div><div class="result-body">${r.detail}</div><div class="result-grid"><div class="result-item"><div class="result-item-label">Owner</div><div class="result-item-val">${r.owner}</div></div><div class="result-item"><div class="result-item-label">Safe to Use</div><div class="result-item-val">${r.safe}</div></div></div></div>`;
+  }catch(e){
+    area.innerHTML=`<div class="result result-warn"><div class="result-title">Error</div><div class="result-body">${e.message}</div></div>`;
+  }
+}
+</script>
+</body>
+</html>
