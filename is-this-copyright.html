@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Is This Copyright?</title>
+<script src="https://unpkg.com/jsmediatags@3.9.5/dist/jsmediatags.web.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #1a1a1a; min-height: 100vh; }
+  .container { max-width: 680px; margin: 0 auto; padding: 40px 20px; }
+  h1 { font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+  .sub { color: #666; font-size: 14px; margin-bottom: 32px; }
+  .card { background: #fff; border-radius: 12px; border: 1px solid #e5e5e5; padding: 20px; margin-bottom: 16px; }
+  input[type="search"] { width: 100%; padding: 10px 12px 10px 38px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.15s; -webkit-appearance: none; }
+  input[type="search"]:focus { border-color: #555; }
+  .search-wrap { position: relative; }
+  .search-wrap::before { content: "🔍"; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 14px; pointer-events: none; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .pill { padding: 5px 12px; border-radius: 20px; border: 1px solid #ddd; background: #fff; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+  .pill:hover { border-color: #999; }
+  .pill.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .genre-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .gpill { padding: 4px 10px; border-radius: 20px; border: 1px solid #e0e0e0; background: #fafafa; font-size: 11px; cursor: pointer; color: #555; transition: all 0.15s; }
+  .gpill:hover { border-color: #aaa; color: #222; }
+  .gpill.active { background: #333; color: #fff; border-color: #333; }
+  .song-list { display: flex; flex-direction: column; gap: 2px; max-height: 420px; overflow-y: auto; }
+  .song { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px; border-radius: 8px; background: #fafafa; border: 1px solid #eee; }
+  .song-text { min-width: 0; flex: 1; }
+  .song-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .song-meta { font-size: 11px; color: #888; }
+  .badge { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+  .badge-c   { background: #fee2e2; color: #b91c1c; }
+  .badge-free{ background: #dcfce7; color: #15803d; }
+  .badge-cc  { background: #fef9c3; color: #a16207; }
+  .badge-unk { background: #f0f0f0; color: #666; }
+  .upload-zone { border: 2px dashed #ccc; border-radius: 10px; padding: 32px 20px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .upload-zone:hover, .upload-zone.drag { border-color: #888; background: #f9f9f9; }
+  .upload-zone .main-label { font-size: 14px; color: #555; margin-top: 8px; }
+  .upload-zone .fmt-label { font-size: 11px; color: #aaa; margin-top: 5px; }
+  .upload-zone .icon { font-size: 30px; }
+  #file-input { display: none; }
+  .result { border-radius: 10px; padding: 16px; margin-top: 14px; }
+  .result-c   { background: #fee2e2; border: 1px solid #fca5a5; }
+  .result-free{ background: #dcfce7; border: 1px solid #86efac; }
+  .result-cc  { background: #fef9c3; border: 1px solid #fde047; }
+  .result-unk { background: #f0f0f0; border: 1px solid #ddd; }
+  .result-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .result-body  { font-size: 13px; line-height: 1.6; color: #333; }
+  .result-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .result-item  { background: rgba(255,255,255,0.6); border-radius: 6px; padding: 8px 10px; }
+  .result-item-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #666; margin-bottom: 2px; }
+  .result-item-val   { font-size: 13px; font-weight: 500; }
+  .empty { text-align: center; padding: 24px; color: #aaa; font-size: 13px; }
+  .count { font-size: 12px; color: #999; }
+  .section-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+  .stats-row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .stat { background: #f8f8f8; border: 1px solid #eee; border-radius: 8px; padding: 8px 14px; font-size: 12px; color: #555; }
+  .stat b { font-size: 16px; font-weight: 700; color: #1a1a1a; display: block; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Is This Copyright? ©</h1>
+  <p class="sub">Search over 500 songs — or upload an audio file to check instantly.</p>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span class="section-title" style="margin:0">Music Database</span>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="stats-row" id="stats-row"></div>
+    <div class="search-wrap">
+      <input type="search" id="search" placeholder="Search by title, artist, album, or genre…"/>
+    </div>
+    <div class="filters" style="margin-top:10px">
+      <button class="pill active" data-f="all">All</button>
+      <button class="pill" data-f="copyrighted">Copyrighted</button>
+      <button class="pill" data-f="public">Public Domain</button>
+      <button class="pill" data-f="cc">Creative Commons</button>
+    </div>
+    <div class="genre-filters" id="genre-filters"></div>
+    <div class="song-list" id="song-list"></div>
+  </div>
+
+  <div class="card">
+    <p class="section-title">Upload an audio file to check</p>
+    <div class="upload-zone" id="zone" onclick="document.getElementById('file-input').click()">
+      <input type="file" id="file-input" accept=".mp3,.wav,.ogg,.flac,.aac,.m4a,.opus,.wma,.aiff,.aif,audio/*"/>
+      <div class="icon">🎵</div>
+      <p class="main-label">Click or drag &amp; drop an audio file</p>
+      <p class="fmt-label">MP3 · WAV · OGG · FLAC · AAC · M4A · OPUS · WMA · AIFF</p>
+    </div>
+    <div id="result-area"></div>
+  </div>
+
+  <p style="text-align:center;font-size:12px;color:#aaa;margin-top:8px;padding-bottom:8px">
+    made by independent developer a.k.a <a href="https://phthion.github.io/about-phthion/" target="_blank" style="color:#555;font-weight:600;text-decoration:none;">PHTHION</a>
+  </p>
+</div>
+
+<script>
+const SONGS = [
+  // ── POP ──────────────────────────────────────────────────────────────────
+  {title:"Blinding Lights",artist:"The Weeknd",year:2019,status:"copyrighted",genre:"Pop"},
+  {title:"Shape of You",artist:"Ed Sheeran",year:2017,status:"copyrighted",genre:"Pop"},
+  {title:"Happy",artist:"Pharrell Williams",year:2013,status:"copyrighted",genre:"Pop"},
+  {title:"Uptown Funk",artist:"Mark Ronson ft. Bruno Mars",year:2014,status:"copyrighted",genre:"Pop"},
+  {title:"Roar",artist:"Katy Perry",year:2013,status:"copyrighted",genre:"Pop"},
+  {title:"Firework",artist:"Katy Perry",year:2010,status:"copyrighted",genre:"Pop"},
+  {title:"Teenage Dream",artist:"Katy Perry",year:2010,status:"copyrighted",genre:"Pop"},
+  {title:"Dark Horse",artist:"Katy Perry ft. Juicy J",year:2013,status:"copyrighted",genre:"Pop"},
+  {title:"Bad Romance",artist:"Lady Gaga",year:2009,status:"copyrighted",genre:"Pop"},
+  {title:"Poker Face",artist:"Lady Gaga",year:2008,status:"copyrighted",genre:"Pop"},
+  {title:"Just Dance",artist:"Lady Gaga",year:2008,status:"copyrighted",genre:"Pop"},
+  {title:"Born This Way",artist:"Lady Gaga",year:2011,status:"copyrighted",genre:"Pop"},
+  {title:"Rolling in the Deep",artist:"Adele",year:2010,status:"copyrighted",genre:"Pop"},
+  {title:"Someone Like You",artist:"Adele",year:2011,status:"copyrighted",genre:"Pop"},
+  {title:"Hello",artist:"Adele",year:2015,status:"copyrighted",genre:"Pop"},
+  {title:"Set Fire to the Rain",artist:"Adele",year:2011,status:"copyrighted",genre:"Pop"},
+  {title:"Easy On Me",artist:"Adele",year:2021,status:"copyrighted",genre:"Pop"},
+  {title:"Shake It Off",artist:"Taylor Swift",year:2014,status:"copyrighted",genre:"Pop"},
+  {title:"Love Story",artist:"Taylor Swift",year:2008,status:"copyrighted",genre:"Pop"},
+  {title:"You Belong With Me",artist:"Taylor Swift",year:2009,status:"copyrighted",genre:"Pop"},
+  {title:"Blank Space",artist:"Taylor Swift",year:2014,status:"copyrighted",genre:"Pop"},
+  {title:"Anti-Hero",artist:"Taylor Swift",year:2022,status:"copyrighted",genre:"Pop"},
+  {title:"Bad Blood",artist:"Taylor Swift",year:2014,status:"copyrighted",genre:"Pop"},
+  {title:"Style",artist:"Taylor Swift",year:2014,status:"copyrighted",genre:"Pop"},
+  {title:"Wildest Dreams",artist:"Taylor Swift",year:2015,status:"copyrighted",genre:"Pop"},
+  {title:"Cruel Summer",artist:"Taylor Swift",year:2019,status:"copyrighted",genre:"Pop"},
+  {title:"Baby",artist:"Justin Bieber ft. Ludacris",year:2010,status:"copyrighted",genre:"Pop"},
+  {title:"Sorry",artist:"Justin Bieber",year:2015,status:"copyrighted",genre:"Pop"},
+  {title:"Love Yourself",artist:"Justin Bieber",year:2015,status:"copyrighted",genre:"Pop"},
+  {title:"What Do You Mean?",artist:"Justin Bieber",year:2015,status:"copyrighted",genre:"Pop"},
+  {title:"Peaches",artist:"Justin Bieber ft. Daniel Caesar & Giveon",year:2021,status:"copyrighted",genre:"Pop"},
+  {title:"Stay",artist:"The Kid LAROI & Justin Bieber",year:2021,status:"copyrighted",genre:"Pop"},
+  {title:"Wrecking Ball",artist:"Miley Cyrus",year:2013,status:"copyrighted",genre:"Pop"},
+  {title:"Flowers",artist:"Miley Cyrus",year:2023,status:"copyrighted",genre:"Pop"},
+  {title:"We Can't Stop",artist:"Miley Cyrus",year:2013,status:"copyrighted",genre:"Pop"},
+  {title:"Titanium",artist:"David Guetta ft. Sia",year:2011,status:"copyrighted",genre:"Pop"},
+  {title:"Chandelier",artist:"Sia",year:2014,status:"copyrighted",genre:"Pop"},
+  {title:"Cheap Thrills",artist:"Sia",year:2016,status:"copyrighted",genre:"Pop"},
+  {title:"Elastic Heart",artist:"Sia",year:2014,status:"copyrighted",genre:"Pop"},
+  {title:"Counting Stars",artist:"OneRepublic",year:2013,status:"copyrighted",genre:"Pop"},
+  {title:"Apologize",artist:"Timbaland ft. OneRepublic",year:2007,status:"copyrighted",genre:"Pop"},
+  {title:"I Gotta Feeling",artist:"Black Eyed Peas",year:2009,status:"copyrighted",genre:"Pop"},
+  {title:"Boom Boom Pow",artist:"Black Eyed Peas",year:2009,status:"copyrighted",genre:"Pop"},
+  {title:"Telephone",artist:"Lady Gaga ft. Beyoncé",year:2009,status:"copyrighted",genre:"Pop"},
+  {title:"Halo",artist:"Beyoncé",year:2008,status:"copyrighted",genre:"Pop"},
+  {title:"Crazy in Love",artist:"Beyoncé ft. Jay-Z",year:2003,status:"copyrighted",genre:"Pop"},
+  {title:"Single Ladies",artist:"Beyoncé",year:2008,status:"copyrighted",genre:"Pop"},
+  {title:"Lemonade",artist:"Beyoncé",year:2016,status:"copyrighted",genre:"Pop"},
+  {title:"Formation",artist:"Beyoncé",year:2016,status:"copyrighted",genre:"Pop"},
+  {title:"Irreplaceable",artist:"Beyoncé",year:2006,status:"copyrighted",genre:"Pop"},
+  {title:"Girls Just Want to Have Fun",artist:"Cyndi Lauper",year:1983,status:"copyrighted",genre:"Pop"},
+  {title:"True Colors",artist:"Cyndi Lauper",year:1986,status:"copyrighted",genre:"Pop"},
+  {title:"Material Girl",artist:"Madonna",year:1984,status:"copyrighted",genre:"Pop"},
+  {title:"Like a Virgin",artist:"Madonna",year:1984,status:"copyrighted",genre:"Pop"},
+  {title:"Like a Prayer",artist:"Madonna",year:1989,status:"copyrighted",genre:"Pop"},
+  {title:"Papa Don't Preach",artist:"Madonna",year:1986,status:"copyrighted",genre:"Pop"},
+  {title:"Vogue",artist:"Madonna",year:1990,status:"copyrighted",genre:"Pop"},
+  {title:"Hung Up",artist:"Madonna",year:2005,status:"copyrighted",genre:"Pop"},
+  {title:"What's Love Got to Do with It",artist:"Tina Turner",year:1984,status:"copyrighted",genre:"Pop"},
+  {title:"Simply the Best",artist:"Tina Turner",year:1989,status:"copyrighted",genre:"Pop"},
+  {title:"Waterloo",artist:"ABBA",year:1974,status:"copyrighted",genre:"Pop"},
+  {title:"Dancing Queen",artist:"ABBA",year:1976,status:"copyrighted",genre:"Pop"},
+  {title:"Mamma Mia",artist:"ABBA",year:1975,status:"copyrighted",genre:"Pop"},
+  {title:"Fernando",artist:"ABBA",year:1976,status:"copyrighted",genre:"Pop"},
+  {title:"The Winner Takes It All",artist:"ABBA",year:1980,status:"copyrighted",genre:"Pop"},
+  {title:"Take On Me",artist:"a-ha",year:1985,status:"copyrighted",genre:"Pop"},
+  {title:"99 Luftballons",artist:"Nena",year:1983,status:"copyrighted",genre:"Pop"},
+  {title:"Don't You Want Me",artist:"Human League",year:1981,status:"copyrighted",genre:"Pop"},
+  {title:"Wake Me Up Before You Go-Go",artist:"Wham!",year:1984,status:"copyrighted",genre:"Pop"},
+  {title:"Careless Whisper",artist:"George Michael",year:1984,status:"copyrighted",genre:"Pop"},
+  {title:"Faith",artist:"George Michael",year:1987,status:"copyrighted",genre:"Pop"},
+  {title:"Father Figure",artist:"George Michael",year:1987,status:"copyrighted",genre:"Pop"},
+  {title:"Kiss",artist:"Prince",year:1986,status:"copyrighted",genre:"Pop"},
+  {title:"When Doves Cry",artist:"Prince",year:1984,status:"copyrighted",genre:"Pop"},
+  {title:"Purple Rain",artist:"Prince",year:1984,status:"copyrighted",genre:"Pop"},
+  {title:"1999",artist:"Prince",year:1982,status:"copyrighted",genre:"Pop"},
+  {title:"Levitating",artist:"Dua Lipa",year:2020,status:"copyrighted",genre:"Pop"},
+  {title:"Don't Start Now",artist:"Dua Lipa",year:2019,status:"copyrighted",genre:"Pop"},
+  {title:"Physical",artist:"Dua Lipa",year:2020,status:"copyrighted",genre:"Pop"},
+  {title:"New Rules",artist:"Dua Lipa",year:2017,status:"copyrighted",genre:"Pop"},
+  {title:"As It Was",artist:"Harry Styles",year:2022,status:"copyrighted",genre:"Pop"},
+  {title:"Watermelon Sugar",artist:"Harry Styles",year:2019,status:"copyrighted",genre:"Pop"},
+  {title:"Adore You",artist:"Harry Styles",year:2019,status:"copyrighted",genre:"Pop"},
+  {title:"drivers license",artist:"Olivia Rodrigo",year:2021,status:"copyrighted",genre:"Pop"},
+  {title:"good 4 u",artist:"Olivia Rodrigo",year:2021,status:"copyrighted",genre:"Pop"},
+  {title:"deja vu",artist:"Olivia Rodrigo",year:2021,status:"copyrighted",genre:"Pop"},
+  {title:"vampire",artist:"Olivia Rodrigo",year:2023,status:"copyrighted",genre:"Pop"},
+  {title:"As Long as You Love Me",artist:"Backstreet Boys",year:1996,status:"copyrighted",genre:"Pop"},
+  {title:"I Want It That Way",artist:"Backstreet Boys",year:1999,status:"copyrighted",genre:"Pop"},
+  {title:"Everybody",artist:"Backstreet Boys",year:1997,status:"copyrighted",genre:"Pop"},
+  {title:"Bye Bye Bye",artist:"NSYNC",year:2000,status:"copyrighted",genre:"Pop"},
+  {title:"Toxic",artist:"Britney Spears",year:2003,status:"copyrighted",genre:"Pop"},
+  {title:"Baby One More Time",artist:"Britney Spears",year:1998,status:"copyrighted",genre:"Pop"},
+  {title:"Oops I Did It Again",artist:"Britney Spears",year:2000,status:"copyrighted",genre:"Pop"},
+  {title:"Gimme More",artist:"Britney Spears",year:2007,status:"copyrighted",genre:"Pop"},
+  {title:"Dirrty",artist:"Christina Aguilera",year:2002,status:"copyrighted",genre:"Pop"},
+  {title:"Beautiful",artist:"Christina Aguilera",year:2002,status:"copyrighted",genre:"Pop"},
+  {title:"Genie in a Bottle",artist:"Christina Aguilera",year:1999,status:"copyrighted",genre:"Pop"},
+  {title:"Superhero",artist:"Doja Cat",year:2023,status:"copyrighted",genre:"Pop"},
+  {title:"Say So",artist:"Doja Cat",year:2019,status:"copyrighted",genre:"Pop"},
+  {title:"Kiss Me More",artist:"Doja Cat ft. SZA",year:2021,status:"copyrighted",genre:"Pop"},
+
+  // ── ROCK ─────────────────────────────────────────────────────────────────
+  {title:"Bohemian Rhapsody",artist:"Queen",year:1975,status:"copyrighted",genre:"Rock"},
+  {title:"We Will Rock You",artist:"Queen",year:1977,status:"copyrighted",genre:"Rock"},
+  {title:"We Are the Champions",artist:"Queen",year:1977,status:"copyrighted",genre:"Rock"},
+  {title:"Don't Stop Me Now",artist:"Queen",year:1978,status:"copyrighted",genre:"Rock"},
+  {title:"Radio Ga Ga",artist:"Queen",year:1984,status:"copyrighted",genre:"Rock"},
+  {title:"Another One Bites the Dust",artist:"Queen",year:1980,status:"copyrighted",genre:"Rock"},
+  {title:"Somebody to Love",artist:"Queen",year:1976,status:"copyrighted",genre:"Rock"},
+  {title:"Hotel California",artist:"Eagles",year:1977,status:"copyrighted",genre:"Rock"},
+  {title:"Desperado",artist:"Eagles",year:1973,status:"copyrighted",genre:"Rock"},
+  {title:"Take It Easy",artist:"Eagles",year:1972,status:"copyrighted",genre:"Rock"},
+  {title:"Life in the Fast Lane",artist:"Eagles",year:1977,status:"copyrighted",genre:"Rock"},
+  {title:"Smells Like Teen Spirit",artist:"Nirvana",year:1991,status:"copyrighted",genre:"Rock"},
+  {title:"Come as You Are",artist:"Nirvana",year:1991,status:"copyrighted",genre:"Rock"},
+  {title:"Heart-Shaped Box",artist:"Nirvana",year:1993,status:"copyrighted",genre:"Rock"},
+  {title:"In Bloom",artist:"Nirvana",year:1991,status:"copyrighted",genre:"Rock"},
+  {title:"About a Girl",artist:"Nirvana",year:1989,status:"copyrighted",genre:"Rock"},
+  {title:"Stairway to Heaven",artist:"Led Zeppelin",year:1971,status:"copyrighted",genre:"Rock"},
+  {title:"Whole Lotta Love",artist:"Led Zeppelin",year:1969,status:"copyrighted",genre:"Rock"},
+  {title:"Kashmir",artist:"Led Zeppelin",year:1975,status:"copyrighted",genre:"Rock"},
+  {title:"Black Dog",artist:"Led Zeppelin",year:1971,status:"copyrighted",genre:"Rock"},
+  {title:"Rock and Roll",artist:"Led Zeppelin",year:1971,status:"copyrighted",genre:"Rock"},
+  {title:"Thunderstruck",artist:"AC/DC",year:1990,status:"copyrighted",genre:"Rock"},
+  {title:"Back in Black",artist:"AC/DC",year:1980,status:"copyrighted",genre:"Rock"},
+  {title:"Highway to Hell",artist:"AC/DC",year:1979,status:"copyrighted",genre:"Rock"},
+  {title:"You Shook Me All Night Long",artist:"AC/DC",year:1980,status:"copyrighted",genre:"Rock"},
+  {title:"Shoot to Thrill",artist:"AC/DC",year:1980,status:"copyrighted",genre:"Rock"},
+  {title:"Sweet Home Alabama",artist:"Lynyrd Skynyrd",year:1974,status:"copyrighted",genre:"Rock"},
+  {title:"Free Bird",artist:"Lynyrd Skynyrd",year:1973,status:"copyrighted",genre:"Rock"},
+  {title:"Enter Sandman",artist:"Metallica",year:1991,status:"copyrighted",genre:"Rock"},
+  {title:"Master of Puppets",artist:"Metallica",year:1986,status:"copyrighted",genre:"Rock"},
+  {title:"Nothing Else Matters",artist:"Metallica",year:1991,status:"copyrighted",genre:"Rock"},
+  {title:"One",artist:"Metallica",year:1988,status:"copyrighted",genre:"Rock"},
+  {title:"Fade to Black",artist:"Metallica",year:1984,status:"copyrighted",genre:"Rock"},
+  {title:"Creep",artist:"Radiohead",year:1992,status:"copyrighted",genre:"Rock"},
+  {title:"Karma Police",artist:"Radiohead",year:1997,status:"copyrighted",genre:"Rock"},
+  {title:"Fake Plastic Trees",artist:"Radiohead",year:1995,status:"copyrighted",genre:"Rock"},
+  {title:"Paranoid Android",artist:"Radiohead",year:1997,status:"copyrighted",genre:"Rock"},
+  {title:"Seven Nation Army",artist:"The White Stripes",year:2003,status:"copyrighted",genre:"Rock"},
+  {title:"Fell in Love with a Girl",artist:"The White Stripes",year:2002,status:"copyrighted",genre:"Rock"},
+  {title:"Mr. Brightside",artist:"The Killers",year:2003,status:"copyrighted",genre:"Rock"},
+  {title:"Somebody Told Me",artist:"The Killers",year:2004,status:"copyrighted",genre:"Rock"},
+  {title:"Human",artist:"The Killers",year:2008,status:"copyrighted",genre:"Rock"},
+  {title:"All These Things That I've Done",artist:"The Killers",year:2003,status:"copyrighted",genre:"Rock"},
+  {title:"Don't Stop Believin'",artist:"Journey",year:1981,status:"copyrighted",genre:"Rock"},
+  {title:"Open Arms",artist:"Journey",year:1981,status:"copyrighted",genre:"Rock"},
+  {title:"Eye of the Tiger",artist:"Survivor",year:1982,status:"copyrighted",genre:"Rock"},
+  {title:"Livin' on a Prayer",artist:"Bon Jovi",year:1986,status:"copyrighted",genre:"Rock"},
+  {title:"It's My Life",artist:"Bon Jovi",year:2000,status:"copyrighted",genre:"Rock"},
+  {title:"You Give Love a Bad Name",artist:"Bon Jovi",year:1986,status:"copyrighted",genre:"Rock"},
+  {title:"Wanted Dead or Alive",artist:"Bon Jovi",year:1986,status:"copyrighted",genre:"Rock"},
+  {title:"Born to Run",artist:"Bruce Springsteen",year:1975,status:"copyrighted",genre:"Rock"},
+  {title:"Dancing in the Dark",artist:"Bruce Springsteen",year:1984,status:"copyrighted",genre:"Rock"},
+  {title:"Glory Days",artist:"Bruce Springsteen",year:1984,status:"copyrighted",genre:"Rock"},
+  {title:"Purple Haze",artist:"Jimi Hendrix",year:1967,status:"copyrighted",genre:"Rock"},
+  {title:"All Along the Watchtower",artist:"Jimi Hendrix",year:1968,status:"copyrighted",genre:"Rock"},
+  {title:"Foxy Lady",artist:"Jimi Hendrix",year:1967,status:"copyrighted",genre:"Rock"},
+  {title:"Dreams",artist:"Fleetwood Mac",year:1977,status:"copyrighted",genre:"Rock"},
+  {title:"The Chain",artist:"Fleetwood Mac",year:1977,status:"copyrighted",genre:"Rock"},
+  {title:"Go Your Own Way",artist:"Fleetwood Mac",year:1977,status:"copyrighted",genre:"Rock"},
+  {title:"Gold Dust Woman",artist:"Fleetwood Mac",year:1977,status:"copyrighted",genre:"Rock"},
+  {title:"Landslide",artist:"Fleetwood Mac",year:1975,status:"copyrighted",genre:"Rock"},
+  {title:"Under Pressure",artist:"Queen & David Bowie",year:1981,status:"copyrighted",genre:"Rock"},
+  {title:"Heroes",artist:"David Bowie",year:1977,status:"copyrighted",genre:"Rock"},
+  {title:"Space Oddity",artist:"David Bowie",year:1969,status:"copyrighted",genre:"Rock"},
+  {title:"Let's Dance",artist:"David Bowie",year:1983,status:"copyrighted",genre:"Rock"},
+  {title:"Ziggy Stardust",artist:"David Bowie",year:1972,status:"copyrighted",genre:"Rock"},
+  {title:"Losing My Religion",artist:"R.E.M.",year:1991,status:"copyrighted",genre:"Rock"},
+  {title:"Everybody Hurts",artist:"R.E.M.",year:1992,status:"copyrighted",genre:"Rock"},
+  {title:"Black",artist:"Pearl Jam",year:1991,status:"copyrighted",genre:"Rock"},
+  {title:"Alive",artist:"Pearl Jam",year:1991,status:"copyrighted",genre:"Rock"},
+  {title:"Jeremy",artist:"Pearl Jam",year:1991,status:"copyrighted",genre:"Rock"},
+  {title:"Black Hole Sun",artist:"Soundgarden",year:1994,status:"copyrighted",genre:"Rock"},
+  {title:"Spoonman",artist:"Soundgarden",year:1994,status:"copyrighted",genre:"Rock"},
+  {title:"Rooster",artist:"Alice in Chains",year:1992,status:"copyrighted",genre:"Rock"},
+  {title:"Would?",artist:"Alice in Chains",year:1992,status:"copyrighted",genre:"Rock"},
+  {title:"Interstate Love Song",artist:"Stone Temple Pilots",year:1994,status:"copyrighted",genre:"Rock"},
+  {title:"Plush",artist:"Stone Temple Pilots",year:1992,status:"copyrighted",genre:"Rock"},
+  {title:"Wonderwall",artist:"Oasis",year:1995,status:"copyrighted",genre:"Rock"},
+  {title:"Don't Look Back in Anger",artist:"Oasis",year:1995,status:"copyrighted",genre:"Rock"},
+  {title:"Champagne Supernova",artist:"Oasis",year:1995,status:"copyrighted",genre:"Rock"},
+  {title:"Supersonic",artist:"Oasis",year:1994,status:"copyrighted",genre:"Rock"},
+  {title:"Common People",artist:"Pulp",year:1995,status:"copyrighted",genre:"Rock"},
+  {title:"Fake Plastic Trees",artist:"Radiohead",year:1995,status:"copyrighted",genre:"Rock"},
+  {title:"Song 2",artist:"Blur",year:1997,status:"copyrighted",genre:"Rock"},
+  {title:"Coffee & TV",artist:"Blur",year:1999,status:"copyrighted",genre:"Rock"},
+  {title:"Basket Case",artist:"Green Day",year:1994,status:"copyrighted",genre:"Rock"},
+  {title:"Good Riddance",artist:"Green Day",year:1997,status:"copyrighted",genre:"Rock"},
+  {title:"American Idiot",artist:"Green Day",year:2004,status:"copyrighted",genre:"Rock"},
+  {title:"Boulevard of Broken Dreams",artist:"Green Day",year:2004,status:"copyrighted",genre:"Rock"},
+  {title:"Holiday",artist:"Green Day",year:2004,status:"copyrighted",genre:"Rock"},
+  {title:"All the Small Things",artist:"Blink-182",year:1999,status:"copyrighted",genre:"Rock"},
+  {title:"I Miss You",artist:"Blink-182",year:2003,status:"copyrighted",genre:"Rock"},
+  {title:"Dammit",artist:"Blink-182",year:1997,status:"copyrighted",genre:"Rock"},
+  {title:"Numb",artist:"Linkin Park",year:2003,status:"copyrighted",genre:"Rock"},
+  {title:"In the End",artist:"Linkin Park",year:2000,status:"copyrighted",genre:"Rock"},
+  {title:"Crawling",artist:"Linkin Park",year:2000,status:"copyrighted",genre:"Rock"},
+  {title:"Breaking the Habit",artist:"Linkin Park",year:2004,status:"copyrighted",genre:"Rock"},
+  {title:"Somewhere I Belong",artist:"Linkin Park",year:2003,status:"copyrighted",genre:"Rock"},
+  {title:"Last Resort",artist:"Papa Roach",year:2000,status:"copyrighted",genre:"Rock"},
+  {title:"Fallen",artist:"Evanescence",year:2003,status:"copyrighted",genre:"Rock"},
+  {title:"Bring Me to Life",artist:"Evanescence",year:2003,status:"copyrighted",genre:"Rock"},
+  {title:"My Immortal",artist:"Evanescence",year:2003,status:"copyrighted",genre:"Rock"},
+  {title:"Maps",artist:"Yeah Yeah Yeahs",year:2003,status:"copyrighted",genre:"Rock"},
+  {title:"Reptilia",artist:"The Strokes",year:2003,status:"copyrighted",genre:"Rock"},
+  {title:"Last Nite",artist:"The Strokes",year:2001,status:"copyrighted",genre:"Rock"},
+  {title:"Someday",artist:"The Strokes",year:2001,status:"copyrighted",genre:"Rock"},
+  {title:"Take Me Out",artist:"Franz Ferdinand",year:2004,status:"copyrighted",genre:"Rock"},
+  {title:"Dakota",artist:"Stereophonics",year:2005,status:"copyrighted",genre:"Rock"},
+  {title:"Mr. Jones",artist:"Counting Crows",year:1993,status:"copyrighted",genre:"Rock"},
+  {title:"Glycerine",artist:"Bush",year:1994,status:"copyrighted",genre:"Rock"},
+  {title:"Semi-Charmed Life",artist:"Third Eye Blind",year:1997,status:"copyrighted",genre:"Rock"},
+  {title:"Jumper",artist:"Third Eye Blind",year:1997,status:"copyrighted",genre:"Rock"},
+  {title:"The Middle",artist:"Jimmy Eat World",year:2001,status:"copyrighted",genre:"Rock"},
+  {title:"Iris",artist:"Goo Goo Dolls",year:1998,status:"copyrighted",genre:"Rock"},
+  {title:"Slide",artist:"Goo Goo Dolls",year:1998,status:"copyrighted",genre:"Rock"},
+  {title:"Everlong",artist:"Foo Fighters",year:1997,status:"copyrighted",genre:"Rock"},
+  {title:"Best of You",artist:"Foo Fighters",year:2005,status:"copyrighted",genre:"Rock"},
+  {title:"Learn to Fly",artist:"Foo Fighters",year:1999,status:"copyrighted",genre:"Rock"},
+  {title:"The Pretender",artist:"Foo Fighters",year:2007,status:"copyrighted",genre:"Rock"},
+  {title:"Times Like These",artist:"Foo Fighters",year:2003,status:"copyrighted",genre:"Rock"},
+  {title:"February Stars",artist:"Foo Fighters",year:1997,status:"copyrighted",genre:"Rock"},
+  {title:"Californication",artist:"Red Hot Chili Peppers",year:1999,status:"copyrighted",genre:"Rock"},
+  {title:"Under the Bridge",artist:"Red Hot Chili Peppers",year:1991,status:"copyrighted",genre:"Rock"},
+  {title:"Scar Tissue",artist:"Red Hot Chili Peppers",year:1999,status:"copyrighted",genre:"Rock"},
+  {title:"By the Way",artist:"Red Hot Chili Peppers",year:2002,status:"copyrighted",genre:"Rock"},
+  {title:"Tell Me Baby",artist:"Red Hot Chili Peppers",year:2006,status:"copyrighted",genre:"Rock"},
+  {title:"Dani California",artist:"Red Hot Chili Peppers",year:2006,status:"copyrighted",genre:"Rock"},
+
+  // ── CLASSIC ROCK / OLDIES ─────────────────────────────────────────────
+  {title:"Yesterday",artist:"The Beatles",year:1965,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Hey Jude",artist:"The Beatles",year:1968,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Let It Be",artist:"The Beatles",year:1970,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Come Together",artist:"The Beatles",year:1969,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Here Comes the Sun",artist:"The Beatles",year:1969,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Blackbird",artist:"The Beatles",year:1968,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Eleanor Rigby",artist:"The Beatles",year:1966,status:"copyrighted",genre:"Classic Rock"},
+  {title:"A Day in the Life",artist:"The Beatles",year:1967,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Strawberry Fields Forever",artist:"The Beatles",year:1967,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Norwegian Wood",artist:"The Beatles",year:1965,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Like a Rolling Stone",artist:"Bob Dylan",year:1965,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Blowin' in the Wind",artist:"Bob Dylan",year:1963,status:"copyrighted",genre:"Classic Rock"},
+  {title:"The Times They Are A-Changin'",artist:"Bob Dylan",year:1964,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Mr. Tambourine Man",artist:"Bob Dylan",year:1965,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Knockin' on Heaven's Door",artist:"Bob Dylan",year:1973,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Good Vibrations",artist:"The Beach Boys",year:1966,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Surfin' USA",artist:"The Beach Boys",year:1963,status:"copyrighted",genre:"Classic Rock"},
+  {title:"God Only Knows",artist:"The Beach Boys",year:1966,status:"copyrighted",genre:"Classic Rock"},
+  {title:"California Girls",artist:"The Beach Boys",year:1965,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Paint It Black",artist:"The Rolling Stones",year:1966,status:"copyrighted",genre:"Classic Rock"},
+  {title:"(I Can't Get No) Satisfaction",artist:"The Rolling Stones",year:1965,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Sympathy for the Devil",artist:"The Rolling Stones",year:1968,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Wild Horses",artist:"The Rolling Stones",year:1971,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Start Me Up",artist:"The Rolling Stones",year:1981,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Jumpin' Jack Flash",artist:"The Rolling Stones",year:1968,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Gimme Shelter",artist:"The Rolling Stones",year:1969,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Brown Sugar",artist:"The Rolling Stones",year:1971,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Light My Fire",artist:"The Doors",year:1967,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Riders on the Storm",artist:"The Doors",year:1971,status:"copyrighted",genre:"Classic Rock"},
+  {title:"People Are Strange",artist:"The Doors",year:1967,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Roadhouse Blues",artist:"The Doors",year:1970,status:"copyrighted",genre:"Classic Rock"},
+  {title:"My Generation",artist:"The Who",year:1965,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Baba O'Riley",artist:"The Who",year:1971,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Won't Get Fooled Again",artist:"The Who",year:1971,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Pinball Wizard",artist:"The Who",year:1969,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Maggie May",artist:"Rod Stewart",year:1971,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Do Ya Think I'm Sexy?",artist:"Rod Stewart",year:1978,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Honky Tonk Women",artist:"The Rolling Stones",year:1969,status:"copyrighted",genre:"Classic Rock"},
+  {title:"House of the Rising Sun",artist:"The Animals",year:1964,status:"copyrighted",genre:"Classic Rock"},
+  {title:"White Room",artist:"Cream",year:1968,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Sunshine of Your Love",artist:"Cream",year:1967,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Layla",artist:"Derek and the Dominos",year:1970,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Wonderful Tonight",artist:"Eric Clapton",year:1977,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Tears in Heaven",artist:"Eric Clapton",year:1992,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Cocaine",artist:"Eric Clapton",year:1977,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Sultans of Swing",artist:"Dire Straits",year:1978,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Money for Nothing",artist:"Dire Straits",year:1985,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Romeo and Juliet",artist:"Dire Straits",year:1980,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Africa",artist:"Toto",year:1982,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Rosanna",artist:"Toto",year:1982,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Total Eclipse of the Heart",artist:"Bonnie Tyler",year:1983,status:"copyrighted",genre:"Classic Rock"},
+  {title:"I Love Rock 'n' Roll",artist:"Joan Jett & the Blackhearts",year:1981,status:"copyrighted",genre:"Classic Rock"},
+  {title:"With or Without You",artist:"U2",year:1987,status:"copyrighted",genre:"Classic Rock"},
+  {title:"One",artist:"U2",year:1991,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Where the Streets Have No Name",artist:"U2",year:1987,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Beautiful Day",artist:"U2",year:2000,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Sunday Bloody Sunday",artist:"U2",year:1983,status:"copyrighted",genre:"Classic Rock"},
+  {title:"New Year's Day",artist:"U2",year:1983,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Running Up That Hill",artist:"Kate Bush",year:1985,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Wuthering Heights",artist:"Kate Bush",year:1978,status:"copyrighted",genre:"Classic Rock"},
+  {title:"Hounds of Love",artist:"Kate Bush",year:1985,status:"copyrighted",genre:"Classic Rock"},
+
+  // ── HIP-HOP / RAP ────────────────────────────────────────────────────
+  {title:"Lose Yourself",artist:"Eminem",year:2002,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Stan",artist:"Eminem ft. Dido",year:2000,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"The Real Slim Shady",artist:"Eminem",year:2000,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Without Me",artist:"Eminem",year:2002,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Rap God",artist:"Eminem",year:2013,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Monster",artist:"Eminem ft. Rihanna",year:2013,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"HUMBLE.",artist:"Kendrick Lamar",year:2017,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"DNA.",artist:"Kendrick Lamar",year:2017,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Swimming Pools",artist:"Kendrick Lamar",year:2012,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Alright",artist:"Kendrick Lamar",year:2015,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Money Trees",artist:"Kendrick Lamar",year:2012,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Not Like Us",artist:"Kendrick Lamar",year:2024,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"SICKO MODE",artist:"Travis Scott",year:2018,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Goosebumps",artist:"Travis Scott",year:2016,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Antidote",artist:"Travis Scott",year:2015,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"God's Plan",artist:"Drake",year:2018,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Hotline Bling",artist:"Drake",year:2015,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"One Dance",artist:"Drake",year:2016,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"In My Feelings",artist:"Drake",year:2018,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Passionfruit",artist:"Drake",year:2017,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Rich Flex",artist:"Drake & 21 Savage",year:2022,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Bad Guy",artist:"Billie Eilish",year:2019,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Ocean Eyes",artist:"Billie Eilish",year:2016,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Therefore I Am",artist:"Billie Eilish",year:2020,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Happier Than Ever",artist:"Billie Eilish",year:2021,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"WAP",artist:"Cardi B ft. Megan Thee Stallion",year:2020,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Bodak Yellow",artist:"Cardi B",year:2017,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"I Like It",artist:"Cardi B ft. Bad Bunny & J Balvin",year:2018,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Savage",artist:"Megan Thee Stallion ft. Beyoncé",year:2020,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Hot Girl Summer",artist:"Megan Thee Stallion",year:2019,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Old Town Road",artist:"Lil Nas X ft. Billy Ray Cyrus",year:2019,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Industry Baby",artist:"Lil Nas X ft. Jack Harlow",year:2021,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Montero",artist:"Lil Nas X",year:2021,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Lucid Dreams",artist:"Juice WRLD",year:2018,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"All Girls Are the Same",artist:"Juice WRLD",year:2018,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Legends",artist:"Juice WRLD",year:2018,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Rockstar",artist:"Post Malone ft. 21 Savage",year:2017,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Sunflower",artist:"Post Malone & Swae Lee",year:2018,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Circles",artist:"Post Malone",year:2019,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Better Now",artist:"Post Malone",year:2018,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Congratulations",artist:"Post Malone ft. Quavo",year:2016,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"XO TOUR Llif3",artist:"Lil Uzi Vert",year:2017,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"The Box",artist:"Roddy Ricch",year:2019,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Essence",artist:"Wizkid ft. Tems",year:2020,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"MONTERO (Call Me By Your Name)",artist:"Lil Nas X",year:2021,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Rap God",artist:"Eminem",year:2013,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Power",artist:"Kanye West",year:2010,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Gold Digger",artist:"Kanye West ft. Jamie Foxx",year:2005,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"All Falls Down",artist:"Kanye West",year:2004,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Stronger",artist:"Kanye West",year:2007,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Runaway",artist:"Kanye West ft. Pusha T",year:2010,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"N****s in Paris",artist:"Jay-Z & Kanye West",year:2011,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Empire State of Mind",artist:"Jay-Z ft. Alicia Keys",year:2009,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"99 Problems",artist:"Jay-Z",year:2003,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Izzo (H.O.V.A.)",artist:"Jay-Z",year:2001,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Somebody That I Used to Know",artist:"Gotye ft. Kimbra",year:2011,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Gasolina",artist:"Daddy Yankee",year:2004,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Con Calma",artist:"Daddy Yankee ft. Snow",year:2019,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Despacito",artist:"Luis Fonsi ft. Daddy Yankee",year:2017,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Shape of You (remix)",artist:"Ed Sheeran & Stormzy",year:2017,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Sicko Mode",artist:"Travis Scott",year:2018,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Thotiana",artist:"Blueface",year:2018,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"BOP",artist:"DaBaby",year:2019,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Suge",artist:"DaBaby",year:2019,status:"copyrighted",genre:"Hip-Hop"},
+  {title:"Rockstar (DaBaby)",artist:"DaBaby ft. Roddy Ricch",year:2020,status:"copyrighted",genre:"Hip-Hop"},
+
+  // ── R&B / SOUL ────────────────────────────────────────────────────────
+  {title:"Respect",artist:"Aretha Franklin",year:1967,status:"copyrighted",genre:"R&B"},
+  {title:"(You Make Me Feel Like) A Natural Woman",artist:"Aretha Franklin",year:1967,status:"copyrighted",genre:"R&B"},
+  {title:"Think",artist:"Aretha Franklin",year:1968,status:"copyrighted",genre:"R&B"},
+  {title:"Chain of Fools",artist:"Aretha Franklin",year:1967,status:"copyrighted",genre:"R&B"},
+  {title:"Imagine",artist:"John Lennon",year:1971,status:"copyrighted",genre:"R&B"},
+  {title:"What's Going On",artist:"Marvin Gaye",year:1971,status:"copyrighted",genre:"R&B"},
+  {title:"Let's Get It On",artist:"Marvin Gaye",year:1973,status:"copyrighted",genre:"R&B"},
+  {title:"Sexual Healing",artist:"Marvin Gaye",year:1982,status:"copyrighted",genre:"R&B"},
+  {title:"I Heard It Through the Grapevine",artist:"Marvin Gaye",year:1968,status:"copyrighted",genre:"R&B"},
+  {title:"Superstition",artist:"Stevie Wonder",year:1972,status:"copyrighted",genre:"R&B"},
+  {title:"Sir Duke",artist:"Stevie Wonder",year:1976,status:"copyrighted",genre:"R&B"},
+  {title:"Isn't She Lovely",artist:"Stevie Wonder",year:1976,status:"copyrighted",genre:"R&B"},
+  {title:"Higher Ground",artist:"Stevie Wonder",year:1973,status:"copyrighted",genre:"R&B"},
+  {title:"I Just Called to Say I Love You",artist:"Stevie Wonder",year:1984,status:"copyrighted",genre:"R&B"},
+  {title:"Signed, Sealed, Delivered I'm Yours",artist:"Stevie Wonder",year:1970,status:"copyrighted",genre:"R&B"},
+  {title:"I Will Always Love You",artist:"Whitney Houston",year:1992,status:"copyrighted",genre:"R&B"},
+  {title:"Greatest Love of All",artist:"Whitney Houston",year:1985,status:"copyrighted",genre:"R&B"},
+  {title:"I Wanna Dance with Somebody",artist:"Whitney Houston",year:1987,status:"copyrighted",genre:"R&B"},
+  {title:"Saving All My Love for You",artist:"Whitney Houston",year:1985,status:"copyrighted",genre:"R&B"},
+  {title:"Run to You",artist:"Whitney Houston",year:1992,status:"copyrighted",genre:"R&B"},
+  {title:"No Scrubs",artist:"TLC",year:1999,status:"copyrighted",genre:"R&B"},
+  {title:"Waterfalls",artist:"TLC",year:1994,status:"copyrighted",genre:"R&B"},
+  {title:"Creep",artist:"TLC",year:1994,status:"copyrighted",genre:"R&B"},
+  {title:"Say My Name",artist:"Destiny's Child",year:1999,status:"copyrighted",genre:"R&B"},
+  {title:"Survivor",artist:"Destiny's Child",year:2001,status:"copyrighted",genre:"R&B"},
+  {title:"Bootylicious",artist:"Destiny's Child",year:2001,status:"copyrighted",genre:"R&B"},
+  {title:"Bills, Bills, Bills",artist:"Destiny's Child",year:1999,status:"copyrighted",genre:"R&B"},
+  {title:"U Got It Bad",artist:"Usher",year:2001,status:"copyrighted",genre:"R&B"},
+  {title:"Yeah!",artist:"Usher ft. Lil Jon & Ludacris",year:2004,status:"copyrighted",genre:"R&B"},
+  {title:"Burn",artist:"Usher",year:2004,status:"copyrighted",genre:"R&B"},
+  {title:"Confessions Part II",artist:"Usher",year:2004,status:"copyrighted",genre:"R&B"},
+  {title:"My Boo",artist:"Usher & Alicia Keys",year:2004,status:"copyrighted",genre:"R&B"},
+  {title:"Fallin'",artist:"Alicia Keys",year:2001,status:"copyrighted",genre:"R&B"},
+  {title:"If I Ain't Got You",artist:"Alicia Keys",year:2003,status:"copyrighted",genre:"R&B"},
+  {title:"No One",artist:"Alicia Keys",year:2007,status:"copyrighted",genre:"R&B"},
+  {title:"Girl on Fire",artist:"Alicia Keys",year:2012,status:"copyrighted",genre:"R&B"},
+  {title:"Climax",artist:"Usher",year:2012,status:"copyrighted",genre:"R&B"},
+  {title:"Good Days",artist:"SZA",year:2020,status:"copyrighted",genre:"R&B"},
+  {title:"Kill Bill",artist:"SZA",year:2022,status:"copyrighted",genre:"R&B"},
+  {title:"Snooze",artist:"SZA",year:2022,status:"copyrighted",genre:"R&B"},
+  {title:"All the Stars",artist:"Kendrick Lamar & SZA",year:2018,status:"copyrighted",genre:"R&B"},
+  {title:"Perm",artist:"Bruno Mars",year:2016,status:"copyrighted",genre:"R&B"},
+  {title:"Just the Way You Are",artist:"Bruno Mars",year:2010,status:"copyrighted",genre:"R&B"},
+  {title:"Grenade",artist:"Bruno Mars",year:2010,status:"copyrighted",genre:"R&B"},
+  {title:"Locked Out of Heaven",artist:"Bruno Mars",year:2012,status:"copyrighted",genre:"R&B"},
+  {title:"24K Magic",artist:"Bruno Mars",year:2016,status:"copyrighted",genre:"R&B"},
+  {title:"Leave the Door Open",artist:"Bruno Mars & Anderson .Paak",year:2021,status:"copyrighted",genre:"R&B"},
+  {title:"Smooth",artist:"Santana ft. Rob Thomas",year:1999,status:"copyrighted",genre:"R&B"},
+
+  // ── ELECTRONIC / DANCE ───────────────────────────────────────────────
+  {title:"Wake Me Up",artist:"Avicii",year:2013,status:"copyrighted",genre:"Electronic"},
+  {title:"Levels",artist:"Avicii",year:2011,status:"copyrighted",genre:"Electronic"},
+  {title:"Without You",artist:"Avicii ft. Sandro Cavazza",year:2017,status:"copyrighted",genre:"Electronic"},
+  {title:"The Nights",artist:"Avicii",year:2014,status:"copyrighted",genre:"Electronic"},
+  {title:"One Last Time",artist:"Ariana Grande",year:2014,status:"copyrighted",genre:"Electronic"},
+  {title:"Clarity",artist:"Zedd ft. Foxes",year:2012,status:"copyrighted",genre:"Electronic"},
+  {title:"Beautiful Now",artist:"Zedd ft. Jon Bellion",year:2015,status:"copyrighted",genre:"Electronic"},
+  {title:"The Middle",artist:"Zedd, Maren Morris & Grey",year:2018,status:"copyrighted",genre:"Electronic"},
+  {title:"Titanium",artist:"David Guetta ft. Sia",year:2011,status:"copyrighted",genre:"Electronic"},
+  {title:"Without You",artist:"David Guetta ft. Usher",year:2011,status:"copyrighted",genre:"Electronic"},
+  {title:"Sexy Bitch",artist:"David Guetta ft. Akon",year:2009,status:"copyrighted",genre:"Electronic"},
+  {title:"Where Them Girls At",artist:"David Guetta",year:2011,status:"copyrighted",genre:"Electronic"},
+  {title:"Animals",artist:"Martin Garrix",year:2013,status:"copyrighted",genre:"Electronic"},
+  {title:"In the Name of Love",artist:"Martin Garrix & Bebe Rexha",year:2016,status:"copyrighted",genre:"Electronic"},
+  {title:"Scared to Be Lonely",artist:"Martin Garrix & Dua Lipa",year:2017,status:"copyrighted",genre:"Electronic"},
+  {title:"Don't You Worry Child",artist:"Swedish House Mafia",year:2012,status:"copyrighted",genre:"Electronic"},
+  {title:"Save the World",artist:"Swedish House Mafia",year:2011,status:"copyrighted",genre:"Electronic"},
+  {title:"Greyhound",artist:"Swedish House Mafia",year:2012,status:"copyrighted",genre:"Electronic"},
+  {title:"Lean On",artist:"Major Lazer & DJ Snake ft. MO",year:2015,status:"copyrighted",genre:"Electronic"},
+  {title:"Cold Water",artist:"Major Lazer ft. Justin Bieber & MO",year:2016,status:"copyrighted",genre:"Electronic"},
+  {title:"Run the World (Girls)",artist:"Beyoncé",year:2011,status:"copyrighted",genre:"Electronic"},
+  {title:"Turn Down for What",artist:"DJ Snake & Lil Jon",year:2013,status:"copyrighted",genre:"Electronic"},
+  {title:"Taki Taki",artist:"DJ Snake ft. Selena Gomez",year:2018,status:"copyrighted",genre:"Electronic"},
+  {title:"Get Lucky",artist:"Daft Punk ft. Pharrell Williams",year:2013,status:"copyrighted",genre:"Electronic"},
+  {title:"Harder Better Faster Stronger",artist:"Daft Punk",year:2001,status:"copyrighted",genre:"Electronic"},
+  {title:"Around the World",artist:"Daft Punk",year:1997,status:"copyrighted",genre:"Electronic"},
+  {title:"One More Time",artist:"Daft Punk",year:2000,status:"copyrighted",genre:"Electronic"},
+  {title:"Instant Crush",artist:"Daft Punk ft. Julian Casablancas",year:2013,status:"copyrighted",genre:"Electronic"},
+  {title:"Lose Yourself to Dance",artist:"Daft Punk ft. Pharrell Williams",year:2013,status:"copyrighted",genre:"Electronic"},
+  {title:"Blue (Da Ba Dee)",artist:"Eiffel 65",year:1998,status:"copyrighted",genre:"Electronic"},
+  {title:"Sandstorm",artist:"Darude",year:1999,status:"copyrighted",genre:"Electronic"},
+  {title:"Kids",artist:"MGMT",year:2007,status:"copyrighted",genre:"Electronic"},
+  {title:"Electric Feel",artist:"MGMT",year:2007,status:"copyrighted",genre:"Electronic"},
+  {title:"Time to Pretend",artist:"MGMT",year:2007,status:"copyrighted",genre:"Electronic"},
+  {title:"Midnight City",artist:"M83",year:2011,status:"copyrighted",genre:"Electronic"},
+  {title:"Outro",artist:"M83",year:2011,status:"copyrighted",genre:"Electronic"},
+  {title:"Pursuit of Happiness",artist:"Kid Cudi ft. MGMT",year:2010,status:"copyrighted",genre:"Electronic"},
+
+  // ── COUNTRY ──────────────────────────────────────────────────────────
+  {title:"Jolene",artist:"Dolly Parton",year:1973,status:"copyrighted",genre:"Country"},
+  {title:"I Will Always Love You",artist:"Dolly Parton",year:1973,status:"copyrighted",genre:"Country"},
+  {title:"9 to 5",artist:"Dolly Parton",year:1980,status:"copyrighted",genre:"Country"},
+  {title:"Coat of Many Colors",artist:"Dolly Parton",year:1971,status:"copyrighted",genre:"Country"},
+  {title:"Friends in Low Places",artist:"Garth Brooks",year:1990,status:"copyrighted",genre:"Country"},
+  {title:"The Dance",artist:"Garth Brooks",year:1989,status:"copyrighted",genre:"Country"},
+  {title:"Thunder Rolls",artist:"Garth Brooks",year:1990,status:"copyrighted",genre:"Country"},
+  {title:"He Stopped Loving Her Today",artist:"George Jones",year:1980,status:"copyrighted",genre:"Country"},
+  {title:"Ring of Fire",artist:"Johnny Cash",year:1963,status:"copyrighted",genre:"Country"},
+  {title:"Hurt",artist:"Johnny Cash",year:2002,status:"copyrighted",genre:"Country"},
+  {title:"Man in Black",artist:"Johnny Cash",year:1971,status:"copyrighted",genre:"Country"},
+  {title:"Folsom Prison Blues",artist:"Johnny Cash",year:1955,status:"copyrighted",genre:"Country"},
+  {title:"I Walk the Line",artist:"Johnny Cash",year:1956,status:"copyrighted",genre:"Country"},
+  {title:"Achy Breaky Heart",artist:"Billy Ray Cyrus",year:1992,status:"copyrighted",genre:"Country"},
+  {title:"Wide Open Spaces",artist:"Dixie Chicks",year:1998,status:"copyrighted",genre:"Country"},
+  {title:"Goodbye Earl",artist:"Dixie Chicks",year:1999,status:"copyrighted",genre:"Country"},
+  {title:"Before He Cheats",artist:"Carrie Underwood",year:2005,status:"copyrighted",genre:"Country"},
+  {title:"Jesus, Take the Wheel",artist:"Carrie Underwood",year:2005,status:"copyrighted",genre:"Country"},
+  {title:"Something in the Water",artist:"Carrie Underwood",year:2014,status:"copyrighted",genre:"Country"},
+  {title:"Cruise",artist:"Florida Georgia Line",year:2012,status:"copyrighted",genre:"Country"},
+  {title:"H.O.L.Y.",artist:"Florida Georgia Line",year:2016,status:"copyrighted",genre:"Country"},
+  {title:"Body Like a Back Road",artist:"Sam Hunt",year:2017,status:"copyrighted",genre:"Country"},
+  {title:"Meant to Be",artist:"Bebe Rexha ft. Florida Georgia Line",year:2017,status:"copyrighted",genre:"Country"},
+  {title:"Die a Happy Man",artist:"Thomas Rhett",year:2015,status:"copyrighted",genre:"Country"},
+  {title:"Life Changes",artist:"Thomas Rhett",year:2017,status:"copyrighted",genre:"Country"},
+  {title:"One Number Away",artist:"Luke Combs",year:2018,status:"copyrighted",genre:"Country"},
+  {title:"Beautiful Crazy",artist:"Luke Combs",year:2018,status:"copyrighted",genre:"Country"},
+  {title:"Fast Car",artist:"Tracy Chapman",year:1988,status:"copyrighted",genre:"Country"},
+  {title:"Tennessee Whiskey",artist:"Chris Stapleton",year:2015,status:"copyrighted",genre:"Country"},
+  {title:"Whiskey and You",artist:"Chris Stapleton",year:2017,status:"copyrighted",genre:"Country"},
+  {title:"Wagon Wheel",artist:"Darius Rucker",year:2012,status:"copyrighted",genre:"Country"},
+
+  // ── CLASSICAL ─────────────────────────────────────────────────────────
+  {title:"Moonlight Sonata",artist:"Beethoven",year:1801,status:"public",genre:"Classical"},
+  {title:"Symphony No. 9",artist:"Beethoven",year:1824,status:"public",genre:"Classical"},
+  {title:"Symphony No. 5",artist:"Beethoven",year:1808,status:"public",genre:"Classical"},
+  {title:"Für Elise",artist:"Beethoven",year:1810,status:"public",genre:"Classical"},
+  {title:"Piano Sonata No. 14",artist:"Beethoven",year:1801,status:"public",genre:"Classical"},
+  {title:"Ode to Joy",artist:"Beethoven",year:1824,status:"public",genre:"Classical"},
+  {title:"Violin Concerto in D",artist:"Beethoven",year:1810,status:"public",genre:"Classical"},
+  {title:"Emperor Concerto",artist:"Beethoven",year:1811,status:"public",genre:"Classical"},
+  {title:"The Four Seasons",artist:"Vivaldi",year:1725,status:"public",genre:"Classical"},
+  {title:"Gloria in D",artist:"Vivaldi",year:1715,status:"public",genre:"Classical"},
+  {title:"Clair de Lune",artist:"Debussy",year:1905,status:"public",genre:"Classical"},
+  {title:"La Mer",artist:"Debussy",year:1905,status:"public",genre:"Classical"},
+  {title:"Prélude à l'après-midi d'un faune",artist:"Debussy",year:1894,status:"public",genre:"Classical"},
+  {title:"Nocturne Op. 9 No. 2",artist:"Chopin",year:1832,status:"public",genre:"Classical"},
+  {title:"Ballade No. 1 in G minor",artist:"Chopin",year:1836,status:"public",genre:"Classical"},
+  {title:"Étude Op. 10 No. 3",artist:"Chopin",year:1833,status:"public",genre:"Classical"},
+  {title:"Waltz in A minor",artist:"Chopin",year:1843,status:"public",genre:"Classical"},
+  {title:"Swan Lake Suite",artist:"Tchaikovsky",year:1876,status:"public",genre:"Classical"},
+  {title:"The Nutcracker Suite",artist:"Tchaikovsky",year:1892,status:"public",genre:"Classical"},
+  {title:"Sleeping Beauty",artist:"Tchaikovsky",year:1889,status:"public",genre:"Classical"},
+  {title:"Piano Concerto No. 1",artist:"Tchaikovsky",year:1875,status:"public",genre:"Classical"},
+  {title:"Ride of the Valkyries",artist:"Wagner",year:1870,status:"public",genre:"Classical"},
+  {title:"Also Sprach Zarathustra",artist:"Richard Strauss",year:1896,status:"public",genre:"Classical"},
+  {title:"Gymnopedie No. 1",artist:"Erik Satie",year:1888,status:"public",genre:"Classical"},
+  {title:"Gymnopedie No. 2",artist:"Erik Satie",year:1888,status:"public",genre:"Classical"},
+  {title:"Gymnopedie No. 3",artist:"Erik Satie",year:1888,status:"public",genre:"Classical"},
+  {title:"Gnossienne No. 1",artist:"Erik Satie",year:1890,status:"public",genre:"Classical"},
+  {title:"Toccata and Fugue in D minor",artist:"Bach",year:1704,status:"public",genre:"Classical"},
+  {title:"Air on the G String",artist:"Bach",year:1730,status:"public",genre:"Classical"},
+  {title:"Cello Suite No. 1",artist:"Bach",year:1720,status:"public",genre:"Classical"},
+  {title:"Brandenburg Concerto No. 3",artist:"Bach",year:1721,status:"public",genre:"Classical"},
+  {title:"Well-Tempered Clavier",artist:"Bach",year:1722,status:"public",genre:"Classical"},
+  {title:"Goldberg Variations",artist:"Bach",year:1741,status:"public",genre:"Classical"},
+  {title:"Canon in D",artist:"Pachelbel",year:1680,status:"public",genre:"Classical"},
+  {title:"Rhapsody in Blue",artist:"Gershwin",year:1924,status:"public",genre:"Classical"},
+  {title:"Bolero",artist:"Ravel",year:1928,status:"public",genre:"Classical"},
+  {title:"Piano Concerto in G",artist:"Ravel",year:1932,status:"public",genre:"Classical"},
+  {title:"Ride of the Valkyries",artist:"Wagner",year:1870,status:"public",genre:"Classical"},
+  {title:"William Tell Overture",artist:"Rossini",year:1829,status:"public",genre:"Classical"},
+  {title:"The Barber of Seville Overture",artist:"Rossini",year:1816,status:"public",genre:"Classical"},
+  {title:"Symphony No. 40",artist:"Mozart",year:1788,status:"public",genre:"Classical"},
+  {title:"Eine kleine Nachtmusik",artist:"Mozart",year:1787,status:"public",genre:"Classical"},
+  {title:"Piano Concerto No. 21",artist:"Mozart",year:1785,status:"public",genre:"Classical"},
+  {title:"Requiem",artist:"Mozart",year:1791,status:"public",genre:"Classical"},
+  {title:"The Magic Flute",artist:"Mozart",year:1791,status:"public",genre:"Classical"},
+  {title:"Don Giovanni",artist:"Mozart",year:1787,status:"public",genre:"Classical"},
+  {title:"New World Symphony",artist:"Dvorak",year:1893,status:"public",genre:"Classical"},
+  {title:"Cello Concerto in B minor",artist:"Dvorak",year:1895,status:"public",genre:"Classical"},
+  {title:"Hungarian Dances",artist:"Brahms",year:1879,status:"public",genre:"Classical"},
+  {title:"Symphony No. 4",artist:"Brahms",year:1885,status:"public",genre:"Classical"},
+  {title:"Violin Concerto in D",artist:"Brahms",year:1879,status:"public",genre:"Classical"},
+  {title:"Symphony No. 4 (Tragic)",artist:"Schubert",year:1816,status:"public",genre:"Classical"},
+  {title:"Ave Maria",artist:"Schubert",year:1825,status:"public",genre:"Classical"},
+  {title:"Winterreise",artist:"Schubert",year:1828,status:"public",genre:"Classical"},
+  {title:"Messiah",artist:"Handel",year:1741,status:"public",genre:"Classical"},
+  {title:"Water Music",artist:"Handel",year:1717,status:"public",genre:"Classical"},
+  {title:"Royal Fireworks Music",artist:"Handel",year:1749,status:"public",genre:"Classical"},
+  {title:"Pictures at an Exhibition",artist:"Mussorgsky",year:1874,status:"public",genre:"Classical"},
+  {title:"Night on Bald Mountain",artist:"Mussorgsky",year:1867,status:"public",genre:"Classical"},
+  {title:"Scheherazade",artist:"Rimsky-Korsakov",year:1888,status:"public",genre:"Classical"},
+
+  // ── CREATIVE COMMONS ──────────────────────────────────────────────────
+  {title:"Gymnopedie No. 1 (CC Arrangement)",artist:"Kevin MacLeod",year:2015,status:"cc",genre:"Creative Commons"},
+  {title:"Elevator Music",artist:"Kevin MacLeod",year:2014,status:"cc",genre:"Creative Commons"},
+  {title:"Relaxing Piano Music",artist:"Kevin MacLeod",year:2013,status:"cc",genre:"Creative Commons"},
+  {title:"Night Owl",artist:"Broke For Free",year:2011,status:"cc",genre:"Creative Commons"},
+  {title:"Petal",artist:"Broke For Free",year:2011,status:"cc",genre:"Creative Commons"},
+  {title:"Sunshine",artist:"Josh Woodward",year:2012,status:"cc",genre:"Creative Commons"},
+  {title:"The Simple Life",artist:"Josh Woodward",year:2013,status:"cc",genre:"Creative Commons"},
+  {title:"Section",artist:"Kai Engel",year:2015,status:"cc",genre:"Creative Commons"},
+  {title:"Chapter Two",artist:"Kai Engel",year:2015,status:"cc",genre:"Creative Commons"},
+  {title:"Careful",artist:"Podington Bear",year:2013,status:"cc",genre:"Creative Commons"},
+  {title:"The Dread Step",artist:"rolemusic",year:2014,status:"cc",genre:"Creative Commons"},
+  {title:"Icelandic Arpeggios",artist:"Blue Dot Sessions",year:2016,status:"cc",genre:"Creative Commons"},
+  {title:"Electrician",artist:"Chris Zabriskie",year:2014,status:"cc",genre:"Creative Commons"},
+  {title:"Cylinder Five",artist:"Chris Zabriskie",year:2014,status:"cc",genre:"Creative Commons"},
+  {title:"Victory",artist:"Komiku",year:2017,status:"cc",genre:"Creative Commons"},
+  {title:"Epoch",artist:"Kai Engel",year:2016,status:"cc",genre:"Creative Commons"},
+  {title:"Summer Smile",artist:"Nicolai Heidlas",year:2016,status:"cc",genre:"Creative Commons"},
+  {title:"Morning Routine",artist:"Vlad Gluschenko",year:2017,status:"cc",genre:"Creative Commons"},
+  {title:"Where I Am From",artist:"Nicolai Heidlas",year:2016,status:"cc",genre:"Creative Commons"},
+  {title:"Cozy",artist:"Dyalla",year:2019,status:"cc",genre:"Creative Commons"},
+
+  // ── JAZZ ──────────────────────────────────────────────────────────────
+  {title:"Take Five",artist:"Dave Brubeck Quartet",year:1959,status:"copyrighted",genre:"Jazz"},
+  {title:"So What",artist:"Miles Davis",year:1959,status:"copyrighted",genre:"Jazz"},
+  {title:"Kind of Blue",artist:"Miles Davis",year:1959,status:"copyrighted",genre:"Jazz"},
+  {title:"A Love Supreme",artist:"John Coltrane",year:1965,status:"copyrighted",genre:"Jazz"},
+  {title:"My Favorite Things",artist:"John Coltrane",year:1961,status:"copyrighted",genre:"Jazz"},
+  {title:"Round Midnight",artist:"Thelonious Monk",year:1947,status:"copyrighted",genre:"Jazz"},
+  {title:"Autumn Leaves",artist:"Various",year:1945,status:"public",genre:"Jazz"},
+  {title:"Summertime",artist:"George Gershwin",year:1935,status:"public",genre:"Jazz"},
+  {title:"Fly Me to the Moon",artist:"Frank Sinatra",year:1964,status:"copyrighted",genre:"Jazz"},
+  {title:"The Way You Look Tonight",artist:"Frank Sinatra",year:1964,status:"copyrighted",genre:"Jazz"},
+  {title:"My Way",artist:"Frank Sinatra",year:1969,status:"copyrighted",genre:"Jazz"},
+  {title:"New York, New York",artist:"Frank Sinatra",year:1980,status:"copyrighted",genre:"Jazz"},
+  {title:"What a Wonderful World",artist:"Louis Armstrong",year:1967,status:"copyrighted",genre:"Jazz"},
+  {title:"La Vie en Rose",artist:"Édith Piaf",year:1946,status:"copyrighted",genre:"Jazz"},
+  {title:"Non, Je Ne Regrette Rien",artist:"Édith Piaf",year:1960,status:"copyrighted",genre:"Jazz"},
+
+  // ── INDIE / ALTERNATIVE ──────────────────────────────────────────────
+  {title:"Take Me to Church",artist:"Hozier",year:2013,status:"copyrighted",genre:"Indie"},
+  {title:"Work Song",artist:"Hozier",year:2014,status:"copyrighted",genre:"Indie"},
+  {title:"Budapest",artist:"George Ezra",year:2014,status:"copyrighted",genre:"Indie"},
+  {title:"Barcelona",artist:"George Ezra",year:2018,status:"copyrighted",genre:"Indie"},
+  {title:"Shotgun",artist:"George Ezra",year:2018,status:"copyrighted",genre:"Indie"},
+  {title:"Pumped Up Kicks",artist:"Foster the People",year:2010,status:"copyrighted",genre:"Indie"},
+  {title:"Call It What You Want",artist:"Foster the People",year:2014,status:"copyrighted",genre:"Indie"},
+  {title:"Home",artist:"Edward Sharpe & The Magnetic Zeros",year:2009,status:"copyrighted",genre:"Indie"},
+  {title:"Little Talks",artist:"Of Monsters and Men",year:2011,status:"copyrighted",genre:"Indie"},
+  {title:"King of Anything",artist:"Sara Bareilles",year:2010,status:"copyrighted",genre:"Indie"},
+  {title:"Brave",artist:"Sara Bareilles",year:2013,status:"copyrighted",genre:"Indie"},
+  {title:"Ho Hey",artist:"The Lumineers",year:2012,status:"copyrighted",genre:"Indie"},
+  {title:"Ophelia",artist:"The Lumineers",year:2016,status:"copyrighted",genre:"Indie"},
+  {title:"Dog Days Are Over",artist:"Florence + The Machine",year:2008,status:"copyrighted",genre:"Indie"},
+  {title:"Shake It Out",artist:"Florence + The Machine",year:2011,status:"copyrighted",genre:"Indie"},
+  {title:"You've Got the Love",artist:"Florence + The Machine",year:2009,status:"copyrighted",genre:"Indie"},
+  {title:"Third Eye",artist:"Florence + The Machine",year:2015,status:"copyrighted",genre:"Indie"},
+  {title:"Ribs",artist:"Lorde",year:2013,status:"copyrighted",genre:"Indie"},
+  {title:"Royals",artist:"Lorde",year:2013,status:"copyrighted",genre:"Indie"},
+  {title:"Team",artist:"Lorde",year:2013,status:"copyrighted",genre:"Indie"},
+  {title:"Green Light",artist:"Lorde",year:2017,status:"copyrighted",genre:"Indie"},
+  {title:"Buzzcut Season",artist:"Lorde",year:2013,status:"copyrighted",genre:"Indie"},
+  {title:"The Less I Know the Better",artist:"Tame Impala",year:2015,status:"copyrighted",genre:"Indie"},
+  {title:"Feels Like We Only Go Backwards",artist:"Tame Impala",year:2012,status:"copyrighted",genre:"Indie"},
+  {title:"Let It Happen",artist:"Tame Impala",year:2015,status:"copyrighted",genre:"Indie"},
+  {title:"New Person, Same Old Mistakes",artist:"Tame Impala",year:2015,status:"copyrighted",genre:"Indie"},
+  {title:"Borderline",artist:"Tame Impala",year:2019,status:"copyrighted",genre:"Indie"},
+  {title:"Do I Wanna Know?",artist:"Arctic Monkeys",year:2013,status:"copyrighted",genre:"Indie"},
+  {title:"R U Mine?",artist:"Arctic Monkeys",year:2013,status:"copyrighted",genre:"Indie"},
+  {title:"Why'd You Only Call Me When You're High?",artist:"Arctic Monkeys",year:2013,status:"copyrighted",genre:"Indie"},
+  {title:"505",artist:"Arctic Monkeys",year:2007,status:"copyrighted",genre:"Indie"},
+  {title:"I Wanna Be Yours",artist:"Arctic Monkeys",year:2013,status:"copyrighted",genre:"Indie"},
+  {title:"Fluorescent Adolescent",artist:"Arctic Monkeys",year:2011,status:"copyrighted",genre:"Indie"},
+  {title:"Knee Socks",artist:"Arctic Monkeys",year:2013,status:"copyrighted",genre:"Indie"},
+  {title:"Crying Lightning",artist:"Arctic Monkeys",year:2009,status:"copyrighted",genre:"Indie"},
+  {title:"She Moves in Her Own Way",artist:"The Kooks",year:2006,status:"copyrighted",genre:"Indie"},
+  {title:"Naive",artist:"The Kooks",year:2006,status:"copyrighted",genre:"Indie"},
+  {title:"I Can Change",artist:"LCD Soundsystem",year:2010,status:"copyrighted",genre:"Indie"},
+  {title:"Dance Yrself Clean",artist:"LCD Soundsystem",year:2010,status:"copyrighted",genre:"Indie"},
+  {title:"Someone Great",artist:"LCD Soundsystem",year:2007,status:"copyrighted",genre:"Indie"},
+  {title:"1901",artist:"Phoenix",year:2009,status:"copyrighted",genre:"Indie"},
+  {title:"Lisztomania",artist:"Phoenix",year:2009,status:"copyrighted",genre:"Indie"},
+  {title:"Oblivion",artist:"Grimes",year:2012,status:"copyrighted",genre:"Indie"},
+  {title:"Genesis",artist:"Grimes",year:2012,status:"copyrighted",genre:"Indie"},
+
+  // ── REGGAE / LATIN ───────────────────────────────────────────────────
+  {title:"No Woman No Cry",artist:"Bob Marley",year:1975,status:"copyrighted",genre:"Reggae"},
+  {title:"Redemption Song",artist:"Bob Marley",year:1980,status:"copyrighted",genre:"Reggae"},
+  {title:"One Love",artist:"Bob Marley",year:1977,status:"copyrighted",genre:"Reggae"},
+  {title:"Three Little Birds",artist:"Bob Marley",year:1977,status:"copyrighted",genre:"Reggae"},
+  {title:"Buffalo Soldier",artist:"Bob Marley",year:1983,status:"copyrighted",genre:"Reggae"},
+  {title:"Jamming",artist:"Bob Marley",year:1977,status:"copyrighted",genre:"Reggae"},
+  {title:"Despacito",artist:"Luis Fonsi ft. Daddy Yankee",year:2017,status:"copyrighted",genre:"Latin"},
+  {title:"Con Calma",artist:"Daddy Yankee ft. Snow",year:2019,status:"copyrighted",genre:"Latin"},
+  {title:"Shakira - Hips Don't Lie",artist:"Shakira ft. Wyclef Jean",year:2005,status:"copyrighted",genre:"Latin"},
+  {title:"Waka Waka",artist:"Shakira",year:2010,status:"copyrighted",genre:"Latin"},
+  {title:"She Wolf",artist:"Shakira",year:2009,status:"copyrighted",genre:"Latin"},
+  {title:"Bad Guy (Remix)",artist:"Billie Eilish & Justin Bieber",year:2019,status:"copyrighted",genre:"Latin"},
+  {title:"Con Calma",artist:"Daddy Yankee",year:2019,status:"copyrighted",genre:"Latin"},
+  {title:"Mi Gente",artist:"J Balvin & Willy William",year:2017,status:"copyrighted",genre:"Latin"},
+  {title:"Reggaeton Lento",artist:"CNCO",year:2016,status:"copyrighted",genre:"Latin"},
+  {title:"Bella y Sensual",artist:"Romeo Santos",year:2017,status:"copyrighted",genre:"Latin"},
+  {title:"La Tortura",artist:"Shakira ft. Alejandro Sanz",year:2005,status:"copyrighted",genre:"Latin"},
+
+  // ── METAL ────────────────────────────────────────────────────────────
+  {title:"Iron Man",artist:"Black Sabbath",year:1970,status:"copyrighted",genre:"Metal"},
+  {title:"Paranoid",artist:"Black Sabbath",year:1970,status:"copyrighted",genre:"Metal"},
+  {title:"War Pigs",artist:"Black Sabbath",year:1970,status:"copyrighted",genre:"Metal"},
+  {title:"Crazy Train",artist:"Ozzy Osbourne",year:1980,status:"copyrighted",genre:"Metal"},
+  {title:"Mr. Crowley",artist:"Ozzy Osbourne",year:1980,status:"copyrighted",genre:"Metal"},
+  {title:"Bark at the Moon",artist:"Ozzy Osbourne",year:1983,status:"copyrighted",genre:"Metal"},
+  {title:"Holy Wars",artist:"Megadeth",year:1990,status:"copyrighted",genre:"Metal"},
+  {title:"Symphony of Destruction",artist:"Megadeth",year:1992,status:"copyrighted",genre:"Metal"},
+  {title:"Peace Sells",artist:"Megadeth",year:1986,status:"copyrighted",genre:"Metal"},
+  {title:"Raining Blood",artist:"Slayer",year:1986,status:"copyrighted",genre:"Metal"},
+  {title:"Angel of Death",artist:"Slayer",year:1986,status:"copyrighted",genre:"Metal"},
+  {title:"Walk",artist:"Pantera",year:1992,status:"copyrighted",genre:"Metal"},
+  {title:"Cowboys from Hell",artist:"Pantera",year:1990,status:"copyrighted",genre:"Metal"},
+  {title:"Drag the Waters",artist:"Pantera",year:1996,status:"copyrighted",genre:"Metal"},
+  {title:"Down with the Sickness",artist:"Disturbed",year:2000,status:"copyrighted",genre:"Metal"},
+  {title:"Stricken",artist:"Disturbed",year:2005,status:"copyrighted",genre:"Metal"},
+  {title:"The Sound of Silence",artist:"Disturbed",year:2015,status:"copyrighted",genre:"Metal"},
+  {title:"Chop Suey!",artist:"System of a Down",year:2001,status:"copyrighted",genre:"Metal"},
+  {title:"B.Y.O.B.",artist:"System of a Down",year:2005,status:"copyrighted",genre:"Metal"},
+  {title:"Toxicity",artist:"System of a Down",year:2001,status:"copyrighted",genre:"Metal"},
+  {title:"Aerials",artist:"System of a Down",year:2001,status:"copyrighted",genre:"Metal"},
+];
+
+const AUDIO_EXTS=['.mp3','.wav','.ogg','.flac','.aac','.m4a','.opus','.wma','.aiff','.aif'];
+let filter='all', genreFilter='all', query='';
+
+const GENRES=['Pop','Rock','Classic Rock','Hip-Hop','R&B','Electronic','Country','Classical','Jazz','Indie','Reggae','Latin','Metal','Creative Commons'];
+
+function badge(s){
+  if(s==='copyrighted') return '<span class="badge badge-c">Copyrighted</span>';
+  if(s==='public') return '<span class="badge badge-free">Public Domain</span>';
+  if(s==='cc') return '<span class="badge badge-cc">Creative Commons</span>';
+  return '<span class="badge badge-unk">Unknown</span>';
+}
+
+function buildStats(){
+  const c=SONGS.filter(s=>s.status==='copyrighted').length;
+  const p=SONGS.filter(s=>s.status==='public').length;
+  const cc=SONGS.filter(s=>s.status==='cc').length;
+  document.getElementById('stats-row').innerHTML=
+    `<div class="stat"><b>${SONGS.length}</b>Total Tracks</div>`+
+    `<div class="stat"><b>${c}</b>Copyrighted</div>`+
+    `<div class="stat"><b>${p}</b>Public Domain</div>`+
+    `<div class="stat"><b>${cc}</b>Creative Commons</div>`;
+}
+
+function buildGenres(){
+  const gf=document.getElementById('genre-filters');
+  gf.innerHTML='<button class="gpill active" data-g="all">All Genres</button>'+
+    GENRES.map(g=>`<button class="gpill" data-g="${g}">${g}</button>`).join('');
+  gf.querySelectorAll('.gpill').forEach(p=>p.addEventListener('click',()=>{
+    gf.querySelectorAll('.gpill').forEach(x=>x.classList.remove('active'));
+    p.classList.add('active'); genreFilter=p.dataset.g; render();
+  }));
+}
+
+function render(){
+  const q=query.toLowerCase();
+  const list=SONGS.filter(s=>{
+    const mq=!q||
+      s.title.toLowerCase().includes(q)||
+      s.artist.toLowerCase().includes(q)||
+      (s.genre&&s.genre.toLowerCase().includes(q))||
+      String(s.year).includes(q);
+    const mf=filter==='all'||(filter==='copyrighted'&&s.status==='copyrighted')||(filter==='public'&&s.status==='public')||(filter==='cc'&&s.status==='cc');
+    const mg=genreFilter==='all'||s.genre===genreFilter;
+    return mq&&mf&&mg;
+  });
+  document.getElementById('count').textContent=list.length+' tracks';
+  const el=document.getElementById('song-list');
+  if(!list.length){el.innerHTML='<div class="empty">No results found — try uploading the file below</div>';return;}
+  el.innerHTML=list.map(s=>`
+    <div class="song">
+      <div class="song-text">
+        <div class="song-name">${s.title}</div>
+        <div class="song-meta">${s.artist} · ${s.year} · ${s.genre||''}</div>
+      </div>
+      ${badge(s.status)}
+    </div>`).join('');
+}
+
+document.getElementById('search').addEventListener('input',e=>{query=e.target.value;render();});
+document.querySelectorAll('.pill').forEach(p=>p.addEventListener('click',()=>{
+  document.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));
+  p.classList.add('active'); filter=p.dataset.f; render();
+}));
+
+buildStats(); buildGenres(); render();
+
+// Upload
+const zone=document.getElementById('zone');
+zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drag');});
+zone.addEventListener('dragleave',()=>zone.classList.remove('drag'));
+zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)handle(f);});
+document.getElementById('file-input').addEventListener('change',e=>{if(e.target.files[0])handle(e.target.files[0]);});
+
+function getExt(n){return n.includes('.')?'.'+n.split('.').pop().toLowerCase():'';}
+function isAudio(f){return AUDIO_EXTS.includes(getExt(f.name))||f.type.startsWith('audio/');}
+
+// Strip extension and decode common filename patterns
+function parseFilename(name){
+  // Remove extension
+  let base=name.replace(/\.[^.]+$/,'');
+  // Decode URI encoding, replace underscores
+  try{base=decodeURIComponent(base);}catch(e){}
+  base=base.replace(/[_]+/g,' ').trim();
+
+  // Pattern: "Artist - Title" or "Artist – Title"
+  const sep=base.match(/\s[-–]\s/);
+  if(sep){
+    const parts=base.split(/\s[-–]\s/);
+    if(parts.length>=2){
+      // Could be Artist - Title or Track# Artist - Title
+      const left=parts[0].replace(/^\d+[\s.]+/,'').trim();
+      const right=parts.slice(1).join(' - ').trim();
+      return{title:right,artist:left};
+    }
+  }
+  // Pattern: "Title (Artist)" 
+  const parens=base.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+  if(parens) return{title:parens[1].trim(),artist:parens[2].trim()};
+
+  // No pattern found — whole name is the title
+  return{title:base.trim(),artist:'Unknown Artist'};
+}
+
+// Formats where jsmediatags can reliably read tags
+const TAG_SUPPORTED=['.mp3','.mp4','.m4a','.aac','.ogg','.flac'];
+
+function dbLookup(title,artist){
+  const t=title.toLowerCase().trim(),a=(artist||'').toLowerCase().trim();
+  let m=SONGS.find(s=>s.title.toLowerCase()===t);
+  if(m) return m;
+  if(a&&a!=='unknown artist'){
+    m=SONGS.find(s=>s.title.toLowerCase().includes(t)&&s.artist.toLowerCase().includes(a));
+    if(m) return m;
+    m=SONGS.find(s=>s.artist.toLowerCase().includes(a)&&(s.title.toLowerCase().includes(t)||t.includes(s.title.toLowerCase().split(' ').slice(0,3).join(' '))));
+    if(m) return m;
+  }
+  m=SONGS.find(s=>s.title.toLowerCase()===t||s.title.toLowerCase().includes(t)||t.includes(s.title.toLowerCase()));
+  return m||null;
+}
+
+function handle(file){
+  if(!isAudio(file)){showResult(null,'error',`"${file.name}" is not a supported audio file.`);return;}
+  const area=document.getElementById('result-area');
+  area.innerHTML='<div style="padding:14px;color:#666;font-size:13px">Reading metadata…</div>';
+  const ext=getExt(file.name);
+  const extLabel=(ext.replace('.','').toUpperCase())||'AUDIO';
+  const parsed=parseFilename(file.name);
+
+  function fallback(){
+    showResult({title:parsed.title,artist:parsed.artist,year:'Unknown',album:'Unknown',ext:extLabel},null);
+  }
+
+  if(TAG_SUPPORTED.includes(ext)){
+    // Set a timeout so we don't hang if jsmediatags stalls
+    let done=false;
+    const timer=setTimeout(()=>{if(!done){done=true;fallback();}},3000);
+    try{
+      jsmediatags.read(file,{
+        onSuccess(tag){
+          if(done) return; done=true; clearTimeout(timer);
+          const t=tag.tags;
+          showResult({
+            title:t.title||parsed.title,
+            artist:t.artist||parsed.artist,
+            year:t.year||'Unknown',
+            album:t.album||'Unknown',
+            ext:extLabel
+          },null);
+        },
+        onError(){if(done) return; done=true; clearTimeout(timer); fallback();}
+      });
+    }catch(e){if(!done){done=true;clearTimeout(timer);fallback();}}
+  }else{
+    // WAV, AIFF, WMA, OPUS — use filename parsing directly
+    fallback();
+  }
+}
+
+function showResult(meta,errType,errMsg){
+  const area=document.getElementById('result-area');
+  if(errType==='error'){area.innerHTML=`<div class="result result-unk"><div class="result-title">Unsupported File</div><div class="result-body">${errMsg}</div></div>`;return;}
+  const{title,artist,year,album,ext}=meta;
+  const match=dbLookup(title,artist);
+  let cls,heading,body,owner,safe;
+  if(match){
+    if(match.status==='copyrighted'){
+      cls='result-c';heading='Copyrighted';
+      body=`"${match.title}" by ${match.artist} (${match.year}) is an actively copyrighted work. You need a license or explicit permission before any public use.`;
+      owner=match.artist;safe='No — license required';
+    }else if(match.status==='public'){
+      cls='result-free';heading='Public Domain';
+      body=`"${match.title}" by ${match.artist} (${match.year}) is in the public domain. You may use it freely, though note that specific recordings may still be protected.`;
+      owner='Public Domain';safe='Yes — free to use';
+    }else{
+      cls='result-cc';heading='Creative Commons';
+      body=`"${match.title}" by ${match.artist} is released under Creative Commons. Check the specific license terms for attribution, commercial use, or remix restrictions.`;
+      owner=match.artist;safe='With attribution';
+    }
+  }else{
+    cls='result-unk';heading='Not Found in Database';
+    body=`"${title}" was not found. It may still be copyrighted — always verify ownership before using music you don't own. Try searching above or consult the rights holder.`;
+    owner='Unknown';safe='Verify first';
+  }
+  area.innerHTML=`
+    <div class="result ${cls}">
+      <div class="result-title">${heading}</div>
+      <div class="result-body">${body}</div>
+      <div class="result-grid">
+        <div class="result-item"><div class="result-item-label">Detected Title</div><div class="result-item-val">${title}</div></div>
+        <div class="result-item"><div class="result-item-label">Artist</div><div class="result-item-val">${artist}</div></div>
+        <div class="result-item"><div class="result-item-label">Owner / Label</div><div class="result-item-val">${owner}</div></div>
+        <div class="result-item"><div class="result-item-label">Safe to Use</div><div class="result-item-val">${safe}</div></div>
+        <div class="result-item"><div class="result-item-label">File Format</div><div class="result-item-val">${ext}</div></div>
+        <div class="result-item"><div class="result-item-label">Year</div><div class="result-item-val">${year}</div></div>
+      </div>
+    </div>`;
+}
+</script>
+</body>
+</html>
